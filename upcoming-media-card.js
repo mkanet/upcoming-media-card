@@ -217,6 +217,7 @@ class UpcomingMediaCard extends HTMLElement {
       card.header = this.config.title;
       this.content = document.createElement("div");
       this.content.style.padding = "5px 10px";
+      this.content.style.position = "relative";
       card.appendChild(this.content);
       this.appendChild(card);
     }
@@ -431,6 +432,7 @@ class UpcomingMediaCard extends HTMLElement {
     const accent =
       this.config.accent_color || defaultClr("var(--primary-color)", "#000");
     const border = this.config.border_color || defaultClr("#fff", "#000");
+    const corner_radius = this.config.corner_radius;
     const shadows = conf =>
       this.config.all_shadows == undefined
         ? conf == undefined
@@ -465,6 +467,7 @@ class UpcomingMediaCard extends HTMLElement {
             position: relative;
             display: inline-block;
             overflow: hidden;
+            ${corner_radius ? 'border-radius:' + corner_radius + 'px;' : ''}
           }
           .${this.uniqueId} .${service}_${view} ha-icon {
             top: -2px;
@@ -491,15 +494,16 @@ class UpcomingMediaCard extends HTMLElement {
           }
           .${this.uniqueId} .${service}_container_${view} {
             position:relative;
-            outline: 5px solid #fff;
+            ${corner_radius ? '' : 'outline: 5px solid #fff;'}
             width:30%;
-            outline:5px solid ${border};
+            ${corner_radius ? 'border:5px solid ' + border + '; box-sizing:border-box;' : 'outline:5px solid ' + border + ';'}
             box-shadow:${boxshdw} rgba(0,0,0,.8);
             float:left;
             background-position: center;
             background-repeat: no-repeat;
             background-size: cover;
             margin:5px 0 15px 5px;
+            ${corner_radius ? 'border-radius:' + corner_radius + 'px; overflow:hidden;' : ''}
           }
           .${this.uniqueId} .${service}_flag_${view} {
             z-index: 1;
@@ -556,6 +560,7 @@ class UpcomingMediaCard extends HTMLElement {
             background-size: var(--background-size);
             box-shadow:${boxshdw} rgba(0,0,0,.8);
             position:relative;
+            ${corner_radius ? 'border-radius:' + corner_radius + 'px;' : ''}
           }
           .${this.uniqueId} .${service}_${view} ha-icon {
             top: 5px;
@@ -581,6 +586,7 @@ class UpcomingMediaCard extends HTMLElement {
             background: ${this.config.enable_transparency ? `linear-gradient(to right, transparent 0%, ${accent} 47%, transparent 70%, ${accent} 100%)` : `linear-gradient(to right, ${accent} 47%, transparent 70%, ${accent} 100%)`};
             margin:auto;
             box-shadow:inset 0 0 0 3px ${border};
+            ${corner_radius ? 'border-radius:' + corner_radius + 'px;' : ''}
           }
           ${this.config.enable_transparency ? `
           .${this.uniqueId} .${service}_fan_${view}::before {
@@ -629,6 +635,7 @@ class UpcomingMediaCard extends HTMLElement {
             margin-right:3px;
             right: 0;
             fill:${flag_color};
+            ${corner_radius ? 'border-radius:' + Math.max(0, corner_radius - 3) + 'px; overflow:hidden;' : ''}
           }
           .${this.uniqueId} .${service}_flag_${view} svg{
             float:right;
@@ -698,21 +705,43 @@ class UpcomingMediaCard extends HTMLElement {
     }
 
     function format_date(input_date, format = "mm/dd/yy") {
-      let fd_day, fd_month, fd_year;
-      if (String(input_date).match(/[T]\d+[:]\d+[:]\d+[Z]/)) {
-        fd_day = new Date(input_date).toLocaleDateString([], { day: "2-digit" });
-        fd_month = new Date(input_date).toLocaleDateString([], { month: "2-digit" });
-        fd_year = new Date(input_date).toLocaleDateString([], { year: "2-digit" });
-      } else if (String(input_date).match(/\d+[-]\d+[-]\d+/)) {
-        input_date = input_date.split("-");
+      let fd_day, fd_month, fd_year, fd_year4;
+      format = String(format || "mm/dd/yy");
+      const s = String(input_date);
+
+      if ((format === "yyyy" || format === "(yyyy)") && s.match(/^\d{4}$/)) {
+        return format === "(yyyy)" ? "(" + s + ")" : s;
+      }
+
+      if (s.match(/[T]\d+[:]\d+[:]\d+[Z]/)) {
+        const dt = new Date(input_date);
+        fd_day = dt.toLocaleDateString([], { day: "2-digit" });
+        fd_month = dt.toLocaleDateString([], { month: "2-digit" });
+        fd_year = dt.toLocaleDateString([], { year: "2-digit" });
+        const y = dt.getFullYear();
+        fd_year4 = isNaN(y) ? "" : String(y);
+      } else if (s.match(/\d+[-]\d+[-]\d+/)) {
+        input_date = s.split("-");
         fd_month = input_date[1];
         fd_day = input_date[2];
         fd_year = input_date[0].slice(-2);
+        fd_year4 = input_date[0];
       } else {
         return "";
       }
-      const formatMap = { dd: fd_day, mm: fd_month, yy: fd_year };
-      return format.replace(/dd|mm|yy/g, matched => formatMap[matched]).replace(/(\d{2})(?=\d)/g, '$1/');
+
+      const dayInt = parseInt(fd_day, 10);
+      const monthInt = parseInt(fd_month, 10);
+      const fd_day1 = isNaN(dayInt) ? fd_day : String(dayInt);
+      const fd_month1 = isNaN(monthInt) ? fd_month : String(monthInt);
+
+      const formatMap = { dd: fd_day, d: fd_day1, mm: fd_month, m: fd_month1, yyyy: fd_year4, yy: fd_year };
+      const mark = "\u0000";
+
+      return format
+        .replace(/yyyy|yy|mm|m|dd|d/g, matched => (formatMap[matched] ?? matched) + mark)
+        .replace(new RegExp(mark + "(?=\\d)", "g"), "/")
+        .replace(new RegExp(mark, "g"), "");
     }
 
     // Hide card while we prepare to display the content
@@ -1015,7 +1044,7 @@ class UpcomingMediaCard extends HTMLElement {
     }
     // Display card after content is ready
     this.content.style.visibility = '';
-    this.content.style.position = '';
+    this.content.style.position = 'relative';
     this.content.style.left = '';
 
     // START: Expand/Collapse feature
@@ -1024,9 +1053,6 @@ class UpcomingMediaCard extends HTMLElement {
       // Create a container div for the placeholder and expand control
       const controlContainer = document.createElement('div');
       controlContainer.classList.add('control-container');
-      controlContainer.style.position = 'absolute';
-      controlContainer.style.top = '0';
-      controlContainer.style.right = '0';
       controlContainer.style.display = 'flex';
       controlContainer.style.flexDirection = 'column';
       controlContainer.style.alignItems = 'flex-end';
@@ -1056,34 +1082,17 @@ class UpcomingMediaCard extends HTMLElement {
             placeholder.style.display = 'inline-block';
             placeholder.style.maxWidth = '100%';
             placeholderContainer.appendChild(placeholder);
-            const topOffsetPixels = 10;
-            function adjust() {
-              controlContainer.style.top = `${topOffsetPixels}px`;
-              controlContainer.style.height = '20px';
-            }
-            adjust();
-            window.addEventListener('resize', adjust);
+            controlContainer.style.marginTop = '10px';
             controlContainer.insertBefore(placeholderContainer, controlContainer.firstChild);
           }
-        } else {
-          controlContainer.style.height = 'auto';
         }
       }
-
-      const setExpandControlContainerHeight = () => {
-        if (controlContainer.querySelector('.expand-control')) {
-          controlContainer.style.height = '50px';
-        }
-      };
-
-      setExpandControlContainerHeight();
-      window.addEventListener('resize', setExpandControlContainerHeight);
 
       const expandControl = document.createElement('div');
       expandControl.classList.add('expand-control');
       expandControl.style = `
         width: 50px;
-        height: 50px;
+        height: 6px;
         cursor: pointer;
         z-index: 6;
         display: flex;
@@ -1091,28 +1100,9 @@ class UpcomingMediaCard extends HTMLElement {
         align-items: center;
         border-radius: 50%;
       `;
-      const setExpandControlPosition = () => {
-        let verticalOffset = 56;
-        if (!this.content.children[this.collapse - 1]) {
-          let placeholderExists = controlContainer.querySelector('.placeholder');
-          expandControl.style.position = 'absolute';
-          if (placeholderExists) {
-            expandControl.style.top = '41px';
-          }
-          expandControl.style.right = '1px';
-        } else {
-          let targetItem = this.content.children[this.collapse - 1];
-          let containerRect = this.content.getBoundingClientRect();
-          let targetRect = targetItem.getBoundingClientRect();
-          expandControl.style.position = 'absolute';
-          expandControl.style.top = `${targetRect.bottom - containerRect.top + verticalOffset}px`;
-          expandControl.style.right = '1px';
-        }
-      };
-      setTimeout(setExpandControlPosition, 0);
       expandControl.innerHTML = `
         <div style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%;">
-          <div class="rotate-icon" style="opacity: 1; transform: rotate(90deg); transition: transform 0.2s ease-in-out;">⟩</div>
+          <div class="rotate-icon" style="opacity: 1; transform: rotate(90deg); transition: transform 0.2s ease-in-out; margin-top: -2px;">⟩</div>
         </div>`;
 
       controlContainer.appendChild(expandControl);
@@ -1129,13 +1119,6 @@ class UpcomingMediaCard extends HTMLElement {
           });
         }, 60);
       });
-      if (this.resizeObserver) {
-        this.resizeObserver.disconnect();
-      }
-      this.resizeObserver = new ResizeObserver(() => {
-        setExpandControlPosition();
-      });
-      this.resizeObserver.observe(this);
     }
     // END: Expand/Collapse feature
     this.adjustZIndex();
@@ -1269,6 +1252,7 @@ class UpcomingMediaCard extends HTMLElement {
     this.config.tooltip_delay = (config.tooltip_delay !== undefined && config.tooltip_delay !== null) ? Math.max(150, config.tooltip_delay) : 750;
     this.config.enable_trailers = config.enable_trailers !== undefined ? config.enable_trailers : false;
     this.config.disable_hyperlinks = config.disable_hyperlinks !== undefined ? config.disable_hyperlinks : false;
+    this.config.corner_radius = config.corner_radius !== undefined ? config.corner_radius : 0;
   }
 
   getCardSize() {
@@ -1276,7 +1260,7 @@ class UpcomingMediaCard extends HTMLElement {
     return view == "poster" ? this.cardSize * 5 : this.cardSize * 3;
   }
 }
-customElements.define("upcoming-media-card", UpcomingMediaCard);
+if (customElements.get("upcoming-media-card")) console.warn("upcoming-media-card already defined; skipping duplicate registration"); else customElements.define("upcoming-media-card", UpcomingMediaCard);
 
 // Configure the preview in the Lovelace card picker
 window.customCards = window.customCards || [];
