@@ -14,12 +14,23 @@ class UpcomingMediaCard extends HTMLElement {
   disconnectedCallback() {
     window.removeEventListener('scroll', this.adjustZIndex);
     this.cleanupDeepLinkListeners();
+    this.cleanupTooltipListeners();
   }
   cleanupDeepLinkListeners() {
     this.deepLinkListeners.forEach((listener, element) => {
       element.removeEventListener('click', listener);
     });
     this.deepLinkListeners.clear();
+  }
+  cleanupTooltipListeners() {
+    this.tooltipListeners.forEach((listeners, element) => {
+      element.removeEventListener('mouseenter', listeners.mouseenter);
+      element.removeEventListener('mouseleave', listeners.mouseleave);
+      element.removeEventListener('touchstart', listeners.touchstart);
+      element.removeEventListener('touchend', listeners.touchend);
+      if (listeners.cleanup) listeners.cleanup();
+    });
+    this.tooltipListeners.clear();
   }
   addDeepLinkListener(element, url, trailer) {
     if (this.config.disable_hyperlinks) return;
@@ -677,6 +688,7 @@ class UpcomingMediaCard extends HTMLElement {
       }
       this.appendChild(style);
     }
+    this.cleanupTooltipListeners();
     this.content.innerHTML = "";
 
     // Truncate text...
@@ -1132,12 +1144,15 @@ class UpcomingMediaCard extends HTMLElement {
       let removalTimeoutId;
       const removeTooltip = () => {
         if (tooltip) {
-          tooltip.style.opacity = '0';
-          tooltip.addEventListener('transitionend', function() {
-            if (tooltip) {
-              document.body.removeChild(tooltip);
-              tooltip = null;
-            }
+          const el = tooltip;
+          tooltip = null;
+          el.style.opacity = '0';
+          const fallbackTimer = setTimeout(() => {
+            if (el.parentNode) el.parentNode.removeChild(el);
+          }, 600);
+          el.addEventListener('transitionend', function() {
+            clearTimeout(fallbackTimer);
+            if (el.parentNode) el.parentNode.removeChild(el);
           }, { once: true });
         }
       };
@@ -1234,11 +1249,19 @@ class UpcomingMediaCard extends HTMLElement {
           removalTimeoutId = setTimeout(removeTooltip, 300);
         },
       };
+      const cleanup = () => {
+        clearTimeout(tooltipTimeoutId);
+        clearTimeout(removalTimeoutId);
+        if (tooltip) {
+          if (tooltip.parentNode) tooltip.parentNode.removeChild(tooltip);
+          tooltip = null;
+        }
+      };
       element.addEventListener('mouseenter', listeners.mouseenter);
       element.addEventListener('mouseleave', listeners.mouseleave);
       element.addEventListener('touchstart', listeners.touchstart);
       element.addEventListener('touchend', listeners.touchend);
-      this.tooltipListeners.set(element, listeners);
+      this.tooltipListeners.set(element, { ...listeners, cleanup });
     }
 
   setConfig(config) {
