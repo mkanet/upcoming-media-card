@@ -2,17 +2,15 @@ class UpcomingMediaCard extends HTMLElement {
   constructor() {
     super();
     this.uniqueId = 'umc-' + Math.random().toString(36).substr(2, 9);
-    this.adjustZIndex = this.adjustZIndex.bind(this);
     this._boundClickListener;
     this.deepLinkListeners = new Map();
     this.tooltipListeners = new Map();
   }
   connectedCallback() {
-    this.adjustZIndex();
-    window.addEventListener('scroll', this.adjustZIndex);
+    this.style.position = 'relative';
+    this.style.zIndex = '0';
   }
   disconnectedCallback() {
-    window.removeEventListener('scroll', this.adjustZIndex);
     this.cleanupDeepLinkListeners();
     this.cleanupTooltipListeners();
   }
@@ -209,16 +207,6 @@ class UpcomingMediaCard extends HTMLElement {
       element.removeEventListener('touchend', listeners.touchend);
       this.deepLinkListeners.delete(element);
     }
-  }
-  // Ensure HA's toolbar takes precedence over UMC's clickable elements if overlapped
-  adjustZIndex() {
-    clearTimeout(this.adjustZIndexTimer);
-    this.adjustZIndexTimer = setTimeout(() => {
-      const toolbar = document.querySelector('app-toolbar') || document.querySelector('.toolbar');
-      const cardTop = this.getBoundingClientRect().top;
-      const toolbarBottom = toolbar ? toolbar.getBoundingClientRect().bottom : 0;
-      this.style.zIndex = cardTop < toolbarBottom ? '1' : '';
-    }, 50);
   }
 
   set hass(hass) {
@@ -481,8 +469,8 @@ class UpcomingMediaCard extends HTMLElement {
             ${corner_radius ? 'border-radius:' + corner_radius + 'px;' : ''}
           }
           .${this.uniqueId} .${service}_${view} ha-icon {
-            top: -2px;
-            right: 3px;
+            top: -1%;
+            right: 2%;
             z-index: 2;
             width: 17%;
             height: 17%;
@@ -574,8 +562,8 @@ class UpcomingMediaCard extends HTMLElement {
             ${corner_radius ? 'border-radius:' + corner_radius + 'px;' : ''}
           }
           .${this.uniqueId} .${service}_${view} ha-icon {
-            top: 5px;
-            margin-right: -19px;
+            top: 4%;
+            margin-right: -4%;
             right:0;
             z-index: 2;
             width: 15%;
@@ -858,7 +846,7 @@ class UpcomingMediaCard extends HTMLElement {
             ? (y = "-2")
             : (y = "0");
         if (view == "fanart")
-          svgshift = i == 0 ? `x="0" dy="1em" ` : `x="0" dy="1.3em" `;
+          svgshift = i == 0 ? `x="0" dy="1.15em" ` : `x="0" dy="1.3em" `;
         else
           svgshift =
             i == 0 ? `x="15" y="${y}" dy="1.3em" ` : `x="15" dy="1.3em" `;
@@ -1133,7 +1121,6 @@ class UpcomingMediaCard extends HTMLElement {
       });
     }
     // END: Expand/Collapse feature
-    this.adjustZIndex();
   }
 
     // Tooltip feature
