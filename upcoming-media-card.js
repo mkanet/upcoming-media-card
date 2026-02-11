@@ -803,7 +803,7 @@ class UpcomingMediaCard extends HTMLElement {
       let keys = {
         $title: item("title") || null,
         $episode: item("episode") || null,
-        $genres: item("genres") || null,
+        $genres: (Array.isArray(item("genres")) ? item("genres").join(", ") : item("genres")) || null,
         $number: item("number") || null,
         $rating: item("rating") || null,
         $release: (item("release") || '').replace("$date", format_date(item("airdate"), releaseFormat)).replace("$year", format_date(item("airdate"), "yy")).replace(" $time", "&nbsp;&nbsp;$time") || null,
@@ -857,7 +857,7 @@ class UpcomingMediaCard extends HTMLElement {
           : `<tspan class="${service}_line${i}_${view}" ${svgshift}>${truncate(
               text,
               char[i]
-            )}</tspan>`;
+            ).replace(/,\s[^,]*\.\.\.$/g, '').replace(/★(?=\s*\d)/g, '<tspan fill="#BF9E59">★</tspan>')}</tspan>`;
       }
       let deepLink = item("deep_link");
 
