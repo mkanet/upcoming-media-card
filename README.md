@@ -63,6 +63,27 @@ Navigate directly to the respective TV episode, movie, game, etc. with a single 
   <img src="./images/umc-deep_link.gif" alt="Clickable Links GIF">
 </p>
 
+<div style="margin-left: 30px;">
+
+#### <b><u>Custom URLs with Dynamic Keywords</u></b>
+
+Create custom clickable links using the `url` setting with keyword substitution. Keywords like `$title`, `$tmdb_id`, `$number`, etc. are replaced with actual values for each item.
+
+#### Example YAML:
+```yaml
+url: https://www.themoviedb.org/tv/$tmdb_id
+```
+Links each item directly to its TMDB page using its unique ID.
+
+```yaml
+url: https://www.google.com/search?q=$title+$number+watch+online
+```
+Combines multiple keywords into a dynamic search URL per item.
+
+**Note:** The custom `url` setting takes priority over `trailer` and `deep_link`. If no custom `url` is configured, the original behavior is preserved.
+
+</div>
+
 <br>
 
 ### IV. Sorting
@@ -129,7 +150,7 @@ Activate with `enable_transparency: true` for a transparent gradient effect inst
 |box_shadows|boolean|true|Display or hide shadows behind objects.|
 |all_shadows|boolean|no default|Turns both text and object shadows on or off.|
 |enable_transparency|boolean|false|Turns on gradient transparency effect.|
-|url|string|no default|Makes entire card clickable with specified hyperlink.|
+|url|string|no default|Makes entire card clickable with specified hyperlink. Supports keywords for dynamic per-item URLs (e.g., `$title`, `$episode`).|
 |collapse|string|no default|Prioritize/group by attribute value.|
 |collapse|number|no default|Collapse all items after N items.|
 |filter|string|no default|Filter items by attribute value.|

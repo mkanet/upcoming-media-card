@@ -119,7 +119,7 @@ class UpcomingMediaCard extends HTMLElement {
       const iframe = document.createElement('iframe');
       iframe.style.width = '100%';
       iframe.style.height = '100%';
-      iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&controls=1&rel=0&fs=1&modestbranding=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}&playsinline=1`;
+      iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&rel=0&fs=1&modestbranding=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}&playsinline=1`;
       iframe.referrerPolicy = 'strict-origin-when-cross-origin';
       iframe.frameBorder = '0';
       iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
@@ -474,6 +474,8 @@ class UpcomingMediaCard extends HTMLElement {
             z-index: 2;
             width: 17%;
             height: 17%;
+            --mdc-icon-size: 100%;
+            transform: scale(0.9);
             position:absolute;
             color:${icon_color};
             filter: drop-shadow( 0px 0px 1px rgba(0,0,0,1));
@@ -568,6 +570,8 @@ class UpcomingMediaCard extends HTMLElement {
             z-index: 2;
             width: 15%;
             height: 15%;
+            --mdc-icon-size: 100%;
+            transform: scale(0.9);
             position:absolute;
             color:${icon_color};
             filter: drop-shadow( 0px 0px 1px rgba(0,0,0,1));
@@ -680,7 +684,7 @@ class UpcomingMediaCard extends HTMLElement {
     this.content.innerHTML = "";
 
     // Truncate text...
-    function truncate(text, chars) {
+    function truncate(text, chars, isTitle) {
 
       function decodeEntities(input) {
         var textarea = document.createElement('textarea');
@@ -694,11 +698,12 @@ class UpcomingMediaCard extends HTMLElement {
       if (text.length > chars) {
         for (let i = chars; i > 0; i--) {
           if (text.charAt(i).match(/( |\s|:|-|;|"|'|,)/) && text.charAt(i - 1).match(/[^\s:;-;"',]/)) {
-            return `${text.substring(0, i)}...`;
+            if (isTitle) return text.substring(0, i);
+            return text.charAt(i) === ',' || text.charAt(i) === ' ' ? text.substring(0, i).replace(/\s+[-&]$/, '') : `${text.substring(0, i)}...`;
           }
         }
         // The cycle above had a really big single word, so we return it anyway
-        return `${text.substring(0, chars)}...`;
+        return isTitle ? text.substring(0, chars) : `${text.substring(0, chars)}...`;
       } else {
         return text;
       }
@@ -797,7 +802,7 @@ class UpcomingMediaCard extends HTMLElement {
       let char = [title_size, line1_size, line2_size, line3_size, line4_size];
 
       // Keyword map for replacement, return null if empty so we can hide empty sections.
-      let keywords = /\$title|\$episode|\$genres|\$number|\$rating|\$release|\$runtime|\$studio|\$price|\$day|\$date|\$time|\$aired|\$album|\$artist|\$channel|\$views|\$likes|\$live_status|\$empty/g;
+      let keywords = /\$title|\$episode|\$genres|\$number|\$rating|\$release|\$runtime|\$studio|\$price|\$day|\$date|\$time|\$aired|\$album|\$artist|\$channel|\$views|\$likes|\$live_status|\$tmdb_id|\$empty/g;
       const format = this.config.date || "mm/dd/yy";
       const releaseFormat = this.config.date || "mm/dd/yy";
       let keys = {
@@ -805,7 +810,7 @@ class UpcomingMediaCard extends HTMLElement {
         $episode: item("episode") || null,
         $genres: (Array.isArray(item("genres")) ? item("genres").join(", ") : item("genres")) || null,
         $number: item("number") || null,
-        $rating: item("rating") || null,
+        $rating: item("rating") ? String(item("rating")).replace(/\d+\.\d+/, m => parseFloat(m).toFixed(1)) : null,
         $release: (item("release") || '').replace("$date", format_date(item("airdate"), releaseFormat)).replace("$year", format_date(item("airdate"), "yy")).replace(" $time", "&nbsp;&nbsp;$time") || null,
         $runtime: runtime || null,
         $studio: item("studio") || null,
@@ -820,6 +825,7 @@ class UpcomingMediaCard extends HTMLElement {
         $views: item("views") || null,
         $likes: item("likes") || null,
         $live_status: item("live_status") || null,
+        $tmdb_id: item("tmdb_id") || null,
         $empty: ''
       };
 
@@ -856,10 +862,15 @@ class UpcomingMediaCard extends HTMLElement {
           ? `<tspan class="${service}_line${i}_${view}" style="fill:transparent;text-shadow:0 0 transparent;" ${svgshift}>.</tspan>`
           : `<tspan class="${service}_line${i}_${view}" ${svgshift}>${truncate(
               text,
-              char[i]
+              char[i],
+              i === 0
             ).replace(/,\s[^,]*\.\.\.$/g, '').replace(/★(?=\s*\d)/g, '<tspan fill="#BF9E59">★</tspan>')}</tspan>`;
       }
       let deepLink = item("deep_link");
+      // Replace keywords in custom url if configured
+      if (this.url) {
+        deepLink = this.url.replace(keywords, val => keys[val]);
+      }
 
       // Mouse & touch event listeners
       function addDeepLinkListener(element, link) {
@@ -934,11 +945,9 @@ class UpcomingMediaCard extends HTMLElement {
         clickableAreaDiv.style.zIndex = '5';
         containerDiv.style.overflow = 'hidden';
         containerDiv.appendChild(clickableAreaDiv);
-        if (!this.config.disable_hyperlinks && (this.url || deepLink || (this.config.enable_trailers && item("trailer")))) {
-          if (this.config.enable_trailers && item("trailer")) {
-            this.addDeepLinkListener(clickableAreaDiv, deepLink || this.url, item("trailer"));
-          } else if (this.url) {
-            this.addDeepLinkListener(clickableAreaDiv, this.url);
+        if (!this.config.disable_hyperlinks && (deepLink || (this.config.enable_trailers && item("trailer")))) {
+          if (this.config.enable_trailers && item("trailer") && !this.url) {
+            this.addDeepLinkListener(clickableAreaDiv, deepLink, item("trailer"));
           } else if (deepLink) {
             this.addDeepLinkListener(clickableAreaDiv, deepLink);
           }
@@ -991,7 +1000,6 @@ class UpcomingMediaCard extends HTMLElement {
             </div>
         `;
         fanartContainerDiv.innerHTML = fanartContainerInnerHTML;
-        let fanartDeepLink = item("deep_link");
         let clickableAreaDivFanart = document.createElement('div');
         // Prevent clicking fanart border
         clickableAreaDivFanart.style.position = 'absolute';
@@ -1003,13 +1011,11 @@ class UpcomingMediaCard extends HTMLElement {
         clickableAreaDivFanart.style.zIndex = '5';
         fanartContainerDiv.style.overflow = 'hidden';
         fanartContainerDiv.appendChild(clickableAreaDivFanart);
-        if (!this.config.disable_hyperlinks && (this.url || fanartDeepLink || (this.config.enable_trailers && item("trailer")))) {
-          if (this.config.enable_trailers && item("trailer")) {
-            this.addDeepLinkListener(clickableAreaDivFanart, fanartDeepLink || this.url, item("trailer"));
-          } else if (this.url) {
-            this.addDeepLinkListener(clickableAreaDivFanart, this.url);
-          } else if (fanartDeepLink) {
-            this.addDeepLinkListener(clickableAreaDivFanart, fanartDeepLink);
+        if (!this.config.disable_hyperlinks && (deepLink || (this.config.enable_trailers && item("trailer")))) {
+          if (this.config.enable_trailers && item("trailer") && !this.url) {
+            this.addDeepLinkListener(clickableAreaDivFanart, deepLink, item("trailer"));
+          } else if (deepLink) {
+            this.addDeepLinkListener(clickableAreaDivFanart, deepLink);
           }
           clickableAreaDivFanart.style.cursor = 'pointer';
         } else {
