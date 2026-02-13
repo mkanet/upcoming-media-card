@@ -1,45 +1,143 @@
-**Requires a custom-component:**<br/>
-This card will only work if you've installed a custom-component to feed it. A list of the current custom components can be found in the [Github readme](https://github.com/custom-cards/upcoming-media-card).
+# Upcoming-Media-Card
 
+**New Interactive Features! ⭐**
 
-## Features
-* Poster and Fan Art views
-* All text can have its contents, color, and size customized.
-* Most design elements can be hidden or have their color changed.
-* 12 or 24 hour display for times and month/day or day/month for dates.
-* Indicator flag with customizable mdi icon and color.
-* Can limit the number of episodes/movies shown.
-* Uses responsive design to scale elegantly
-<br>
-#### Fully Interactive Cards&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;***New!*** ⭐
+Note: Remember to clear your web browser cache if you can't get a new
+feature to work after upgrading to a new version.
 
-- Single-click or touch navigation directly to TV Episodes or Movies on Plex, Radarr, and Sonarr Web interfaces.  This feature leverages the new `deep_link` attribute from *[Plex Recently Added](https://github.com/custom-components/sensor.plex_recently_added)*, *[Radarr Upcoming Media](https://github.com/custom-components/sensor.radarr_upcoming_media)*, and *[Sonarr Upcoming Media](https://github.com/custom-components/sensor.sonarr_upcoming_media)*, Integrations.<br>
+---
 
-  ◉&nbsp;**Video Demo: https://youtu.be/iHo90Wd9oTs**
+### I. Rounded Corners
 
+Add rounded corners to each media item using the `corner_radius` setting. The radius value controls how rounded the corners appear.
 
+![Rounded Corners Image](https://raw.githubusercontent.com/custom-cards/upcoming-media-card/master/images/rounded_corners.png)
 
-- New `url:` card setting, for example, `url: https://sonarr.mkanet.dynip.com/calendar` to make the entire card clickable with a single URL. Note, this feature takes precidence over deep_link clickable TV episodes and movies.
+#### Example YAML:
+```yaml
+title: TV
+type: custom:upcoming-media-card
+entity: sensor.recently_added_tv
+image_style: fanart
+corner_radius: 10
+```
 
+By setting `corner_radius: 10`, all items in the card will render with uniformly rounded corners. Increase the value for more pronounced rounding. Omit the setting or use `corner_radius: 0` to keep the default square corners.
 
-#### Transparency Effect&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;***New!*** ⭐
-  - Activate with `enable_transparency: true` for a transparent gradient effect instead of the default opaque gradient background.
+---
 
-    ![enable_transparency](image.png)
-<br>
+### II. Collapse Filter
 
-## Supporting Development
-- :coffee: [Buy me a coffee](https://www.buymeacoffee.com/FgwNR2l)
-- :red_circle: [Tip some Crypto](https://github.com/sponsors/maykar)
-- :heart: [Sponsor me on GitHub](https://github.com/sponsors/maykar)
-<br><br>
+Group items with common attributes together, e.g., group **_Unwatched_** <img src="https://raw.githubusercontent.com/custom-cards/upcoming-media-card/master/images/Unwatched.png" width="20"> items first. The rest of the items can be collapsed/expanded:
 
-| Poster View | Fan Art View
-| ---- | ---- 
-| <img src="https://i.imgur.com/tdSBZZQ.png" alt="Screenshot 1" width="250"> | <img src="https://i.imgur.com/hWAcUuS.png" alt="Screenshot 1" width="269"> 
+![Collapse Filter GIF](https://raw.githubusercontent.com/custom-cards/upcoming-media-card/master/images/umc-expand-collapse-filter.gif)
 
+#### Example YAML:
+```yaml
+title: TV
+type: custom:upcoming-media-card
+entity: sensor.recently_added_tv
+image_style: fanart
+collapse: flag=true
+corner_radius: 10
+sort_by: number
+enable_tooltips: true
+```
 
+By setting `collapse: flag=true`, items not yet watched are prioritized and grouped at the top. You can expand/collapse the rest of the items. Alternatively, you can specify, I.E., `collapse: 2` to collapse/expand everything after 2 items (regardless of what items are displayed).
 
-<br/><br/>
-<a href="https://www.buymeacoffee.com/FgwNR2l" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/black_img.png" alt="Buy Me A Coffee" style="height: auto !important;width: auto !important;" ></a><br>
-### If you're having issues, check out the [troubleshooting guide](https://github.com/custom-cards/upcoming-media-card/blob/master/troubleshooting.md) and [@thomasloven's lovelace guide](https://github.com/thomasloven/hass-config/wiki/Lovelace-Plugins) before posting an issue to Github or asking for help on the forums.
+Note: You can also leverage the new `sort_by` setting as a secondary sort method (season/episode) sort order.
+
+---
+
+### III. Clickable Links
+
+Navigate directly to the respective TV episode, movie, game, etc. with a single click or touch! Made possible with the new `deep_link` attribute.
+
+![Clickable Links GIF](https://raw.githubusercontent.com/custom-cards/upcoming-media-card/master/images/umc-deep_link.gif)
+
+#### **Custom URLs with Dynamic Keywords**
+
+Create custom clickable links using the `url` setting with keyword substitution. Keywords like `$title`, `$tmdb_id`, `$number`, etc. are replaced with actual values for each item.
+
+#### Example YAML:
+```yaml
+url: https://www.themoviedb.org/tv/$tmdb_id
+```
+Links each item directly to its TMDB page using its unique ID.
+
+```yaml
+url: https://www.google.com/search?q=$title+$number+watch+online
+```
+Combines multiple keywords into a dynamic search URL per item.
+
+**Note:** The custom `url` setting takes priority over `trailer` and `deep_link`. If no custom `url` is configured, the original behavior is preserved.
+
+---
+
+### IV. Sorting
+
+We can finally sort items by any attribute. `sort_by: airdate` will sort media items by their respective airdates. You can also reverse the sort order using `sort_ascending: false`.
+
+---
+
+### V. General Filtering
+
+Filter items by partial or full attribute value. `filter: flag=true`. Similar to `collapse:` setting, except discards the rest of the items.
+
+---
+
+### VI. Show & Movie Trailer Playback
+
+When using `enable_trailers:true` setting, any item with a trailer attribute value will playback the respective video trailer when clicked or touched.
+
+![Trailers GIF](https://raw.githubusercontent.com/custom-cards/upcoming-media-card/master/images/umc_trailers.gif)
+
+---
+
+### VII. Tooltips
+
+To enable tooltips, use `enable_tooltips: true`. To change the default delay, use I.E., `tooltip_delay: 2000` (default 750ms).
+
+![Tooltips GIF](https://raw.githubusercontent.com/custom-cards/upcoming-media-card/master/images/tooltips.gif)
+
+---
+
+### VIII. Transparency Effect
+
+Activate with `enable_transparency: true` for a transparent gradient effect instead of the default opaque gradient background.
+
+![Transparency Effect Image](https://raw.githubusercontent.com/custom-cards/upcoming-media-card/master/images/transparency.png)
+
+---
+
+## Options
+
+### Main Config
+
+|NAME|TYPE|DEFAULT|DESCRIPTION|
+|-|-|-|-|
+|type|string|**REQUIRED**|**`custom:upcoming-media-card`**|
+|entity|string|**REQUIRED**|The entity id of the custom component.|
+|title|string|optional|Title displayed at top of card.|
+|date|string|ddmmyy|Format for displaying dates.|
+|clock|number|12|Display times as either 12 hour or 24 hour.|
+|max|number|5|Maximum number of items to show.|
+|image_style|string|poster|poster or fanart.|
+|corner_radius|number|0|Applies rounded corners to each item. Value is in pixels.|
+|hide_empty|boolean|false|Hide card when there are no episodes to show.|
+|hide_flagged|boolean|false|Hide items that get an indicator flag.|
+|hide_unflagged|boolean|false|Hide items that don't have an indicator flag.|
+|flag|boolean|true|Display or hide indicator flag.|
+|text_shadows|boolean|true|Display or hide shadows behind text.|
+|box_shadows|boolean|true|Display or hide shadows behind objects.|
+|all_shadows|boolean|no default|Turns both text and object shadows on or off.|
+|enable_transparency|boolean|false|Turns on gradient transparency effect.|
+|url|string|no default|Makes entire card clickable with specified hyperlink. Supports keywords for dynamic per-item URLs (e.g., `$title`, `$episode`).|
+|collapse|string|no default|Prioritize/group by attribute value.|
+|collapse|number|no default|Collapse all items after N items.|
+|filter|string|no default|Filter items by attribute value.|
+|sort_by|string|no default|Attribute used for sorting items.|
+|sort_ascending|boolean|true|Sort order.|
+|enable_tooltips|boolean|false|Display summary tooltips.|
+|disable_hyperlinks|boolean|false|Disable deep_link clicks.|

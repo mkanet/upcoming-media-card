@@ -9,14 +9,18 @@ class UpcomingMediaCard extends HTMLElement {
   connectedCallback() {
     this.style.position = 'relative';
     this.style.zIndex = '0';
+    this.style.touchAction = 'manipulation'; // Remove 300ms tap delay; allow pan + pinch zoom
   }
   disconnectedCallback() {
     this.cleanupDeepLinkListeners();
     this.cleanupTooltipListeners();
   }
   cleanupDeepLinkListeners() {
-    this.deepLinkListeners.forEach((listener, element) => {
-      element.removeEventListener('click', listener);
+    this.deepLinkListeners.forEach((listeners, element) => {
+      element.removeEventListener('click', listeners.click);
+      element.removeEventListener('touchstart', listeners.touchstart);
+      element.removeEventListener('touchmove', listeners.touchmove);
+      element.removeEventListener('touchend', listeners.touchend);
     });
     this.deepLinkListeners.clear();
   }
@@ -25,6 +29,7 @@ class UpcomingMediaCard extends HTMLElement {
       element.removeEventListener('mouseenter', listeners.mouseenter);
       element.removeEventListener('mouseleave', listeners.mouseleave);
       element.removeEventListener('touchstart', listeners.touchstart);
+      element.removeEventListener('touchmove', listeners.touchmove);
       element.removeEventListener('touchend', listeners.touchend);
       if (listeners.cleanup) listeners.cleanup();
     });
@@ -153,22 +158,36 @@ class UpcomingMediaCard extends HTMLElement {
       history.pushState({ overlayOpen: true }, '');
       return overlay;
     };
-    let touchStartTime;
-    const touchThreshold = 500;
+    let touchStartX, touchStartY, touchStartTime;
+    const touchThreshold = 500;    // ms — long-press cancels tap
+    const moveThresholdPx = 10;    // px — per Android touch slop / Mobiscroll standard
     let touchTimer;
     let preventClick = false;
-    const handleTouchStart = () => {
-      touchStartTime = new Date().getTime();
+    let isMoving = false;
+    const handleTouchStart = (event) => {
+      touchStartX = event.touches[0].pageX;
+      touchStartY = event.touches[0].pageY;
+      touchStartTime = Date.now();
       preventClick = false;
+      isMoving = false;
       touchTimer = setTimeout(() => {
         preventClick = true;
       }, touchThreshold);
     };
+    const handleTouchMove = (event) => {
+      if (isMoving) return;
+      const dx = event.touches[0].pageX - touchStartX;
+      const dy = event.touches[0].pageY - touchStartY;
+      if (Math.abs(dx) > moveThresholdPx || Math.abs(dy) > moveThresholdPx) {
+        isMoving = true;
+        preventClick = true;
+        clearTimeout(touchTimer);
+      }
+    };
     const handleTouchEnd = (event) => {
       clearTimeout(touchTimer);
-      const touchEndTime = new Date().getTime();
-      const touchDuration = touchEndTime - touchStartTime;
-      if (touchDuration < touchThreshold && !preventClick) {
+      if (!isMoving && !preventClick && (Date.now() - touchStartTime) < touchThreshold) {
+        event.preventDefault(); // Block synthetic click — prevents double navigation
         handleClick(event);
       }
     };
@@ -186,11 +205,13 @@ class UpcomingMediaCard extends HTMLElement {
       }
     };
     element.addEventListener('click', handleClick);
-    element.addEventListener('touchstart', handleTouchStart);
+    element.addEventListener('touchstart', handleTouchStart, { passive: true });
+    element.addEventListener('touchmove', handleTouchMove, { passive: true });
     element.addEventListener('touchend', handleTouchEnd);
     this.deepLinkListeners.set(element, {
       click: handleClick,
       touchstart: handleTouchStart,
+      touchmove: handleTouchMove,
       touchend: handleTouchEnd
     });
   }
@@ -678,6 +699,18 @@ class UpcomingMediaCard extends HTMLElement {
           }
         `;
       }
+      // Suppress default browser touch visual feedback for all interactive card descendants.
+      // Covers: -webkit-tap-highlight (blue/gray flash), :active darkening, iOS touch callout.
+      // The card provides its own feedback (tooltips), so native cues are redundant and distracting.
+      style.textContent += `
+        .${this.uniqueId} * {
+          -webkit-tap-highlight-color: transparent;
+          -webkit-touch-callout: none;
+        }
+        .${this.uniqueId} *:active {
+          -webkit-tap-highlight-color: transparent;
+        }
+      `;
       this.appendChild(style);
     }
     this.cleanupTooltipListeners();
@@ -753,6 +786,49 @@ class UpcomingMediaCard extends HTMLElement {
     this.content.style.visibility = 'hidden';
     this.content.style.position = 'absolute';
     this.content.style.left = '-9999px';
+
+    // Star brightness and saturation matching
+    const resolveRGB = (colorStr) => {
+      const t = document.createElement('div');
+      t.style.color = colorStr;
+      t.style.display = 'none';
+      document.body.appendChild(t);
+      const c = getComputedStyle(t).color;
+      document.body.removeChild(t);
+      const m = c.match(/(\d+),\s*(\d+),\s*(\d+)/);
+      return m ? [+m[1], +m[2], +m[3]] : [255, 255, 255];
+    };
+    const perceivedBrightness = (rgb) => (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255;
+    const rgbToSat = (rgb) => {
+      const r = rgb[0] / 255, g = rgb[1] / 255, b = rgb[2] / 255;
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      if (max === min) return 0;
+      const l = (max + min) / 2;
+      return (max - min) / (l > 0.5 ? (2 - max - min) : (max + min)) * 100;
+    };
+    const defaultLine3 = defaultClr("var(--primary-text-color)", "#fff");
+    const defRGB = resolveRGB(defaultLine3);
+    const curRGB = resolveRGB(line3_color);
+    const defBright = perceivedBrightness(defRGB);
+    const curBright = perceivedBrightness(curRGB);
+    const brightRatio = defBright > 0 ? curBright / defBright : 1;
+    const defSat = rgbToSat(defRGB);
+    const curSat = rgbToSat(curRGB);
+    const satRatio = defSat > 5 ? curSat / defSat : (curSat > 5 ? curSat / 55 : 1);
+    const adjustedStar = (() => {
+      const h = 41;
+      const brightBoost = Math.pow(brightRatio, 1.4) * (1 + Math.log1p(Math.pow(brightRatio, 2.5)) / Math.log(3));
+      let s = Math.round(Math.min(100, 57 * satRatio * 1.07 * brightBoost));
+      let l = Math.round(Math.min(100, 65 * brightRatio * 1.09));
+      const hsl2rgb = (h, s, l) => {
+        s /= 100; l /= 100;
+        const k = n => (n + h / 30) % 12;
+        const a = s * Math.min(l, 1 - l);
+        const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+        return '#' + [f(0), f(8), f(4)].map(v => Math.round(v * 255).toString(16).padStart(2, '0')).join('');
+      };
+      return hsl2rgb(h, s, l);
+    })();
 
     //Begin of loop iterating through each item in for json data
     for (let count = 1; count <= max; count++) {
@@ -864,7 +940,7 @@ class UpcomingMediaCard extends HTMLElement {
               text,
               char[i],
               i === 0
-            ).replace(/,\s[^,]*\.\.\.$/g, '').replace(/★(?=\s*\d)/g, '<tspan fill="#BF9E59">★</tspan>')}</tspan>`;
+            ).replace(/,\s[^,]*\.\.\.$/g, '').replace(/★(?=\s*\d)/g, `<tspan fill="${adjustedStar}">★</tspan>`)}</tspan>`;
       }
       let deepLink = item("deep_link");
       // Replace keywords in custom url if configured
@@ -1062,9 +1138,17 @@ class UpcomingMediaCard extends HTMLElement {
       controlContainer.style.display = 'flex';
       controlContainer.style.flexDirection = 'column';
       controlContainer.style.alignItems = 'flex-end';
-      this.content.appendChild(controlContainer);
+      // Insert control before the first collapsed item so it stays in place when expanded
+      const firstCollapsedEl = this.content.querySelector('.collapsed');
+      if (firstCollapsedEl) {
+        let insertRef = firstCollapsedEl;
+        while (insertRef.parentNode !== this.content) insertRef = insertRef.parentNode;
+        this.content.insertBefore(controlContainer, insertRef);
+      } else {
+        this.content.appendChild(controlContainer);
+      }
 
-      // Check if there are items that are not collapsed; if none, display the placeholder.
+      // Check if there are items that are not collapsed
       if (typeof this.config.collapse === 'string' && this.config.collapse.includes('=')) {
         const [attribute, expectedValue] = this.config.collapse.split('=').map(part => part.trim());
         if (!json.slice(1).some(item => item[attribute] && item[attribute].toString().toLowerCase().includes(expectedValue.toLowerCase()))) {
@@ -1097,23 +1181,53 @@ class UpcomingMediaCard extends HTMLElement {
       const expandControl = document.createElement('div');
       expandControl.classList.add('expand-control');
       expandControl.style = `
+        position: relative;
         width: 50px;
         height: 6px;
-        cursor: pointer;
         z-index: 6;
         display: flex;
         justify-content: center;
         align-items: center;
-        border-radius: 50%;
+        overflow: visible;
       `;
-      expandControl.innerHTML = `
-        <div style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%;">
-          <div class="rotate-icon" style="opacity: 1; transform: rotate(90deg); transition: transform 0.2s ease-in-out; margin-top: -2px;">⟩</div>
-        </div>`;
 
+      // Invisible circular touch shield — 44px diameter per WCAG 2.5.8 / Apple HIG / Material Design
+      // clip-path: circle(50%) creates an actual circular hit area (not just visual like border-radius)
+      const touchShield = document.createElement('div');
+      touchShield.classList.add('expand-touch-shield');
+      touchShield.style = `
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        clip-path: circle(50%);
+        -webkit-clip-path: circle(50%);
+        z-index: 7;
+        cursor: pointer;
+        background: transparent;
+      `;
+
+      // Visual chevron — pointer-events: none so only the shield receives touch/click events
+      const chevronWrapper = document.createElement('div');
+      chevronWrapper.style = `
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      `;
+      chevronWrapper.innerHTML = `
+        <div class="rotate-icon" style="opacity: 1; transform: rotate(90deg); transition: transform 0.2s ease-in-out; margin-top: -2px;">⟩</div>`;
+
+      expandControl.appendChild(touchShield);
+      expandControl.appendChild(chevronWrapper);
       controlContainer.appendChild(expandControl);
 
-      expandControl.addEventListener('click', () => {
+      // Expand/collapse toggle handler
+      const toggleExpand = () => {
         this.isExpanded = !this.isExpanded;
         const rotateIcon = expandControl.querySelector('.rotate-icon');
         rotateIcon.style.transition = 'transform 0.2s ease-in-out';
@@ -1124,6 +1238,19 @@ class UpcomingMediaCard extends HTMLElement {
             item.style.display = this.isExpanded ? 'block' : 'none';
           });
         }, 60);
+      };
+
+      // Touch/click protection — stopPropagation prevents card-level click listener from firing
+      // The shield's z-index 7 occludes adjacent z-index 5 hyperlink areas within the 44px circle
+      touchShield.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleExpand();
+      });
+      touchShield.addEventListener('touchstart', (e) => {
+        e.stopPropagation();
+      });
+      touchShield.addEventListener('touchend', (e) => {
+        e.stopPropagation();
       });
     }
     // END: Expand/Collapse feature
@@ -1132,6 +1259,11 @@ class UpcomingMediaCard extends HTMLElement {
     // Tooltip feature
     addTooltipHandlers(element, summary) {
       if (!summary) return;
+      // Suppress browser default touch feedback — this card manages its own visual feedback (tooltips)
+      // Without this, removing preventDefault from touchstart exposes the native tap highlight
+      element.style.webkitTapHighlightColor = 'transparent';
+      element.style.webkitUserSelect = 'none';
+      element.style.userSelect = 'none';
       let tooltipTimeoutId;
       let tooltip;
       let removalTimeoutId;
@@ -1219,25 +1351,44 @@ class UpcomingMediaCard extends HTMLElement {
               }, 50);
             });
           });
-        }, this.config.tooltip_delay);
+        }, isTouch ? this.config.tooltip_delay : Math.round(this.config.tooltip_delay * 1.5));
       };
       // Define a function to handle mouse move events
       const handleMouseMove = (e) => showTooltip(e.clientX, e.clientY);
       const listeners = {
         mouseenter: (e) => {
+          if (listeners._touchActive) return; // Ignore synthetic mouse events during touch
           showTooltip(e.clientX, e.clientY);
           element.addEventListener('mousemove', handleMouseMove);
         },
         mouseleave: () => {
+          if (listeners._touchActive) return; // Ignore synthetic mouse events during touch
           if (tooltipTimeoutId) clearTimeout(tooltipTimeoutId);
           removalTimeoutId = setTimeout(removeTooltip, 300);
           element.removeEventListener('mousemove', handleMouseMove);
         },
         touchstart: (e) => {
-          e.preventDefault();
+          // Record start position — do NOT preventDefault so native scrolling is preserved
+          listeners._touchActive = true;
+          listeners._touchX = e.touches[0].pageX;
+          listeners._touchY = e.touches[0].pageY;
+          listeners._touchCancelled = false;
           showTooltip(e.touches[0].clientX, e.touches[0].clientY, true);
         },
+        touchmove: (e) => {
+          // Cancel tooltip if user drags beyond touch-slop threshold (scroll intent)
+          if (listeners._touchCancelled) return;
+          const dx = e.touches[0].pageX - listeners._touchX;
+          const dy = e.touches[0].pageY - listeners._touchY;
+          if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+            listeners._touchCancelled = true;
+            if (tooltipTimeoutId) clearTimeout(tooltipTimeoutId);
+            removeTooltip();
+          }
+        },
         touchend: () => {
+          // Delay clearing _touchActive so it outlasts any synthetic mouse events fired after touchend
+          setTimeout(() => { listeners._touchActive = false; }, 400);
           if (tooltipTimeoutId) clearTimeout(tooltipTimeoutId);
           removalTimeoutId = setTimeout(removeTooltip, 300);
         },
@@ -1252,7 +1403,8 @@ class UpcomingMediaCard extends HTMLElement {
       };
       element.addEventListener('mouseenter', listeners.mouseenter);
       element.addEventListener('mouseleave', listeners.mouseleave);
-      element.addEventListener('touchstart', listeners.touchstart);
+      element.addEventListener('touchstart', listeners.touchstart, { passive: true });
+      element.addEventListener('touchmove', listeners.touchmove, { passive: true });
       element.addEventListener('touchend', listeners.touchend);
       this.tooltipListeners.set(element, { ...listeners, cleanup });
     }
@@ -1265,7 +1417,7 @@ class UpcomingMediaCard extends HTMLElement {
     this.url = config.url;
     this.collapse = config.collapse || Infinity;
     this.config.enable_tooltips = config.enable_tooltips !== undefined ? config.enable_tooltips : false;
-    this.config.tooltip_delay = (config.tooltip_delay !== undefined && config.tooltip_delay !== null) ? Math.max(150, config.tooltip_delay) : 750;
+    this.config.tooltip_delay = (config.tooltip_delay !== undefined && config.tooltip_delay !== null) ? Math.max(150, config.tooltip_delay) : 500;
     this.config.enable_trailers = config.enable_trailers !== undefined ? config.enable_trailers : false;
     this.config.disable_hyperlinks = config.disable_hyperlinks !== undefined ? config.disable_hyperlinks : false;
     this.config.corner_radius = config.corner_radius !== undefined ? config.corner_radius : 0;
