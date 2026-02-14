@@ -12,8 +12,6 @@ class UpcomingMediaCard extends HTMLElement {
     this.style.touchAction = 'manipulation'; // Remove 300ms tap delay; allow pan + pinch zoom
   }
   disconnectedCallback() {
-    this.cleanupDeepLinkListeners();
-    this.cleanupTooltipListeners();
   }
   cleanupDeepLinkListeners() {
     this.deepLinkListeners.forEach((listeners, element) => {
@@ -225,6 +223,7 @@ class UpcomingMediaCard extends HTMLElement {
     if (listeners) {
       element.removeEventListener('click', listeners.click);
       element.removeEventListener('touchstart', listeners.touchstart);
+      element.removeEventListener('touchmove', listeners.touchmove);
       element.removeEventListener('touchend', listeners.touchend);
       this.deepLinkListeners.delete(element);
     }
@@ -713,6 +712,7 @@ class UpcomingMediaCard extends HTMLElement {
       `;
       this.appendChild(style);
     }
+    this.cleanupDeepLinkListeners();
     this.cleanupTooltipListeners();
     this.content.innerHTML = "";
 
@@ -817,9 +817,13 @@ class UpcomingMediaCard extends HTMLElement {
     const satRatio = defSat > 5 ? curSat / defSat : (curSat > 5 ? curSat / 55 : 1);
     const adjustedStar = (() => {
       const h = 41;
+      const brightnessAdjustment = 5;
+      const saturationAdjustment = 29;
+      const satCurveSteepness = 3.0; // TUNE THIS: higher = saturation ramps up faster with brightness (1.0 = linear, 2.0 = steep, 3.0 = very steep, 4.0+ = extreme)
       const brightBoost = Math.pow(brightRatio, 1.4) * (1 + Math.log1p(Math.pow(brightRatio, 2.5)) / Math.log(3));
-      let s = Math.round(Math.min(100, 57 * satRatio * 1.07 * brightBoost));
-      let l = Math.round(Math.min(100, 65 * brightRatio * 1.09));
+      const satBoost = Math.pow(brightRatio, satCurveSteepness);
+      let s = Math.min(100, Math.round(57 * satRatio * 1.07 * brightBoost * satBoost) + saturationAdjustment);
+      let l = Math.min(100, Math.round(65 * brightRatio * 1.09) + brightnessAdjustment);
       const hsl2rgb = (h, s, l) => {
         s /= 100; l /= 100;
         const k = n => (n + h / 30) % 12;
