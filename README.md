@@ -1,20 +1,16 @@
 # Upcoming-Media-Card
 
-<b>New Interactive Features! ⭐</b>
-<br>
-<p style="margin-top: 20px;"></p>
-Note: &nbsp;Remember to clear your web browser cache if you can't get a new
-feature to work after upgrading to a new version.
+**New Interactive Features! ⭐**
 
-<p style="margin-top: 40px;"></p>
+Note: Remember to clear your web browser cache if you can't get a new feature to work after upgrading to a new version.
+
+---
 
 ### I. Rounded Corners
 
 Add rounded corners to each media item using the `corner_radius` setting. The radius value controls how rounded the corners appear.
 
-<p align="left">
-  <img src="./images/rounded_corners.png" alt="Rounded Corners Image" style="margin-bottom: -22px;">
-</p>
+![Rounded Corners Image](https://raw.githubusercontent.com/custom-cards/upcoming-media-card/master/images/rounded_corners.png)
 
 #### Example YAML:
 ```yaml
@@ -27,15 +23,13 @@ corner_radius: 10
 
 By setting `corner_radius: 10`, all items in the card will render with uniformly rounded corners. Increase the value for more pronounced rounding. Omit the setting or use `corner_radius: 0` to keep the default square corners.
 
-<br>
+---
 
 ### II. Collapse Filter
 
-Group items with common attributes together, e.g., group&nbsp;&nbsp;<b><i>Unwatched</i></b>&nbsp;&nbsp;<img src="./images/Unwatched.png" alt="Unwatched" style="width: 20px; height: auto;">&nbsp;&nbsp;items first. The rest of the items can be collapsed/expanded:
+Group items with common attributes together, e.g., group **_Unwatched_** <img src="https://raw.githubusercontent.com/custom-cards/upcoming-media-card/master/images/Unwatched.png" width="20"> items first. The rest of the items can be collapsed/expanded:
 
-<p align="center">
-  <img src="./images/umc-expand-collapse-filter.gif" alt="Collapse Filter GIF" style="margin-bottom: -22px;">
-</p>
+![Collapse Filter GIF](https://raw.githubusercontent.com/custom-cards/upcoming-media-card/master/images/umc-expand-collapse-filter.gif)
 
 #### Example YAML:
 ```yaml
@@ -53,19 +47,15 @@ By setting `collapse: flag=true`, items not yet watched are prioritized and grou
 
 Note: You can also leverage the new `sort_by` setting as a secondary sort method (season/episode) sort order.
 
-<br>
+---
 
 ### III. Clickable Links
 
 Navigate directly to the respective TV episode, movie, game, etc. with a single click or touch! Made possible with the new `deep_link` attribute.
 
-<p align="center">
-  <img src="./images/umc-deep_link.gif" alt="Clickable Links GIF">
-</p>
+![Clickable Links GIF](https://raw.githubusercontent.com/custom-cards/upcoming-media-card/master/images/umc-deep_link.gif)
 
-<div style="margin-left: 30px;">
-
-#### <b><u>Custom URLs with Dynamic Keywords</u></b>
+#### **Custom URLs with Dynamic Keywords**
 
 Create custom clickable links using the `url` setting with keyword substitution. Keywords like `$title`, `$tmdb_id`, `$number`, etc. are replaced with actual values for each item.
 
@@ -82,51 +72,43 @@ Combines multiple keywords into a dynamic search URL per item.
 
 **Note:** The custom `url` setting takes priority over `trailer` and `deep_link`. If no custom `url` is configured, the original behavior is preserved.
 
-</div>
-
-<br>
+---
 
 ### IV. Sorting
 
 We can finally sort items by any attribute. `sort_by: airdate` will sort media items by their respective airdates. You can also reverse the sort order using `sort_ascending: false`.
 
-<br>
+---
 
 ### V. General Filtering
 
 Filter items by partial or full attribute value. `filter: flag=true`. Similar to `collapse:` setting, except discards the rest of the items.
 
-<br>
+---
 
 ### VI. Show & Movie Trailer Playback
 
 When using `enable_trailers:true` setting, any item with a trailer attribute value will playback the respective video trailer when clicked or touched.
 
-<p align="center">
-  <img src="./images/umc_trailers.gif" alt="Tooltips GIF">
-</p>
+![Trailers GIF](https://raw.githubusercontent.com/custom-cards/upcoming-media-card/master/images/umc_trailers.gif)
 
-<br>
+---
 
 ### VII. Tooltips
 
 To enable tooltips, use `enable_tooltips: true`. To change the default delay, use I.E., `tooltip_delay: 2000` (default 750ms).
 
-<p align="center">
-  <img src="./images/tooltips.gif" alt="Tooltips GIF">
-</p>
+![Tooltips GIF](https://raw.githubusercontent.com/custom-cards/upcoming-media-card/master/images/tooltips.gif)
 
-<br>
+---
 
 ### VIII. Transparency Effect
 
 Activate with `enable_transparency: true` for a transparent gradient effect instead of the default opaque gradient background.
 
-<p align="left">
-  <img src="./images/transparency.png" alt="Transparency Effect Image">
-</p>
+![Transparency Effect Image](https://raw.githubusercontent.com/custom-cards/upcoming-media-card/master/images/transparency.png)
 
-<br><br>
+---
 
 ## Options
 
@@ -158,4 +140,3 @@ Activate with `enable_transparency: true` for a transparent gradient effect inst
 |sort_ascending|boolean|true|Sort order.|
 |enable_tooltips|boolean|false|Display summary tooltips.|
 |disable_hyperlinks|boolean|false|Disable deep_link clicks.|
-
